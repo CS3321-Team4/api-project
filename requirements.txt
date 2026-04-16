@@ -1,2 +1,12 @@
 fastapi
 uvicorn[standard]
+sqlalchemy
+pydantic-settings
+python-dotenv
+itsdangerous
+google-api-python-client
+google-auth
+google-auth-httplib2
+google-auth-oauthlib
+httpx
+pytest
