@@ -89,7 +89,7 @@ doppler secrets set DATABASE_URL="sqlite:///./app.db"
 Then run the API through Doppler:
 
 ```bash
-doppler run -- uvicorn app.main:app --reload
+doppler run -- uvicorn --app-dir src calendar_prioritizer.main:app --reload
 ```
 
 If you use Docker locally, run Docker through Doppler as well:
@@ -98,6 +98,8 @@ If you use Docker locally, run Docker through Doppler as well:
 doppler run -- docker compose up --build
 ```
 
+
+The container project root is `/src/calendar-prioritizer`, and the Python package now lives at `src/calendar_prioritizer`.
 ## Google Cloud Configuration
 
 In the Google Cloud Console, create a Web application OAuth client and add this redirect URI for local development:
@@ -119,7 +121,7 @@ pip install -r requirements.txt
 2. Start the API with Doppler.
 
 ```bash
-doppler run -- uvicorn app.main:app --reload
+doppler run -- uvicorn --app-dir src calendar_prioritizer.main:app --reload
 ```
 
 3. Open the docs.
