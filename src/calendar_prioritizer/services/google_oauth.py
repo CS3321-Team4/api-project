@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+from contextlib import contextmanager
 from datetime import timezone
 from uuid import uuid4
 
@@ -26,8 +28,25 @@ def ensure_google_configured(settings: Settings) -> None:
     )
 
 
+@contextmanager
+def relax_token_scope_check() -> None:
+    previous_value = os.environ.get("OAUTHLIB_RELAX_TOKEN_SCOPE")
+    os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
+    try:
+        yield
+    finally:
+        if previous_value is None:
+            os.environ.pop("OAUTHLIB_RELAX_TOKEN_SCOPE", None)
+        else:
+            os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = previous_value
 
-def build_google_flow(settings: Settings, state: str | None = None) -> Flow:
+
+
+def build_google_flow(
+    settings: Settings,
+    state: str | None = None,
+    code_verifier: str | None = None,
+) -> Flow:
     ensure_google_configured(settings)
 
     client_config = {
@@ -41,30 +60,37 @@ def build_google_flow(settings: Settings, state: str | None = None) -> Flow:
         }
     }
 
-    flow = Flow.from_client_config(client_config, scopes=settings.google_scopes, state=state)
+    flow = Flow.from_client_config(
+        client_config,
+        scopes=settings.google_scopes,
+        state=state,
+        code_verifier=code_verifier,
+    )
     flow.redirect_uri = settings.google_redirect_uri
     return flow
 
 
 
-def create_authorization_url(settings: Settings) -> tuple[str, str]:
+def create_authorization_url(settings: Settings) -> tuple[str, str, str | None]:
     flow = build_google_flow(settings)
     authorization_url, state = flow.authorization_url(
         access_type="offline",
         include_granted_scopes="true",
         prompt=settings.google_prompt,
     )
-    return authorization_url, state
+    return authorization_url, state, flow.code_verifier
 
 
 
 def exchange_code_for_credentials(
     settings: Settings,
-    authorization_response: str,
+    code: str,
     state: str,
+    code_verifier: str | None,
 ) -> Credentials:
-    flow = build_google_flow(settings, state=state)
-    flow.fetch_token(authorization_response=authorization_response)
+    flow = build_google_flow(settings, state=state, code_verifier=code_verifier)
+    with relax_token_scope_check():
+        flow.fetch_token(code=code)
     return flow.credentials
 
 
@@ -142,6 +168,6 @@ def _sync_model_from_credentials(oauth_session: OAuthSession, credentials: Crede
     oauth_session.token_uri = credentials.token_uri or "https://oauth2.googleapis.com/token"
     oauth_session.scopes = json.dumps(scopes)
     oauth_session.granted_scopes = json.dumps(granted_scopes)
-    oauth_session.token_type = credentials.token_type
+    oauth_session.token_type = getattr(credentials, "token_type", None)
     oauth_session.expiry = expiry
-    oauth_session.id_token = credentials.id_token
+    oauth_session.id_token = getattr(credentials, "id_token", None)

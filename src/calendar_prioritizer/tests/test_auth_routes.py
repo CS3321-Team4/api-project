@@ -4,11 +4,14 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 
-
 def test_google_login_redirects_to_google(client, monkeypatch) -> None:
     monkeypatch.setattr(
         "calendar_prioritizer.api.routes.auth.create_authorization_url",
-        lambda settings: ("https://accounts.google.com/o/oauth2/auth?state=test-state", "test-state"),
+        lambda settings: (
+            "https://accounts.google.com/o/oauth2/auth?state=test-state",
+            "test-state",
+            "test-code-verifier",
+        ),
     )
 
     response = client.get("/api/auth/google/login", follow_redirects=False)
@@ -22,7 +25,11 @@ def test_google_login_redirects_to_google(client, monkeypatch) -> None:
 def test_google_callback_creates_session(client, monkeypatch) -> None:
     monkeypatch.setattr(
         "calendar_prioritizer.api.routes.auth.create_authorization_url",
-        lambda settings: ("https://accounts.google.com/o/oauth2/auth?state=test-state", "test-state"),
+        lambda settings: (
+            "https://accounts.google.com/o/oauth2/auth?state=test-state",
+            "test-state",
+            "test-code-verifier",
+        ),
     )
 
     credentials = SimpleNamespace(
@@ -35,9 +42,17 @@ def test_google_callback_creates_session(client, monkeypatch) -> None:
         id_token=None,
         token_type="Bearer",
     )
+    seen: dict[str, str] = {}
+
+    def fake_exchange(settings, code, state, code_verifier):
+        seen["code"] = code
+        seen["state"] = state
+        seen["code_verifier"] = code_verifier
+        return credentials
+
     monkeypatch.setattr(
         "calendar_prioritizer.api.routes.auth.exchange_code_for_credentials",
-        lambda settings, authorization_response, state: credentials,
+        fake_exchange,
     )
 
     client.get("/api/auth/google/url")
@@ -46,16 +61,61 @@ def test_google_callback_creates_session(client, monkeypatch) -> None:
 
     assert callback_response.status_code == 200
     assert "Google Calendar connected" in callback_response.text
+    assert seen == {
+        "code": "fake-code",
+        "state": "test-state",
+        "code_verifier": "test-code-verifier",
+    }
     assert status_response.status_code == 200
     assert status_response.json()["is_authenticated"] is True
     assert status_response.json()["scopes"] == credentials.scopes
 
 
 
+def test_google_callback_requires_authorization_code(client, monkeypatch) -> None:
+    monkeypatch.setattr(
+        "calendar_prioritizer.api.routes.auth.create_authorization_url",
+        lambda settings: (
+            "https://accounts.google.com/o/oauth2/auth?state=test-state",
+            "test-state",
+            "test-code-verifier",
+        ),
+    )
+
+    client.get("/api/auth/google/url")
+    response = client.get("/api/auth/google/callback?state=test-state")
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Missing OAuth authorization code. Start the sign-in flow again."
+
+
+
+def test_google_callback_requires_code_verifier(client, monkeypatch) -> None:
+    monkeypatch.setattr(
+        "calendar_prioritizer.api.routes.auth.create_authorization_url",
+        lambda settings: (
+            "https://accounts.google.com/o/oauth2/auth?state=test-state",
+            "test-state",
+            None,
+        ),
+    )
+
+    client.get("/api/auth/google/url")
+    response = client.get("/api/auth/google/callback?state=test-state&code=fake-code")
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Missing OAuth code verifier. Start the sign-in flow again."
+
+
+
 def test_logout_clears_google_session(client, monkeypatch) -> None:
     monkeypatch.setattr(
         "calendar_prioritizer.api.routes.auth.create_authorization_url",
-        lambda settings: ("https://accounts.google.com/o/oauth2/auth?state=test-state", "test-state"),
+        lambda settings: (
+            "https://accounts.google.com/o/oauth2/auth?state=test-state",
+            "test-state",
+            "test-code-verifier",
+        ),
     )
 
     credentials = SimpleNamespace(
@@ -70,7 +130,7 @@ def test_logout_clears_google_session(client, monkeypatch) -> None:
     )
     monkeypatch.setattr(
         "calendar_prioritizer.api.routes.auth.exchange_code_for_credentials",
-        lambda settings, authorization_response, state: credentials,
+        lambda settings, code, state, code_verifier: credentials,
     )
 
     client.get("/api/auth/google/url")

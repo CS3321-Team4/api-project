@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
@@ -17,6 +19,12 @@ from calendar_prioritizer.services.google_oauth import (
     upsert_session_from_credentials,
 )
 
+logger = logging.getLogger(__name__)
+
+GOOGLE_OAUTH_STATE_SESSION_KEY = "google_oauth_state"
+GOOGLE_OAUTH_CODE_VERIFIER_SESSION_KEY = "google_oauth_code_verifier"
+GOOGLE_SESSION_ID_SESSION_KEY = "google_session_id"
+
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
@@ -25,8 +33,9 @@ def get_google_authorization_url(
     request: Request,
     settings: Settings = Depends(require_google_config),
 ) -> GoogleAuthorizationUrlResponse:
-    authorization_url, state = create_authorization_url(settings)
-    request.session["google_oauth_state"] = state
+    authorization_url, state, code_verifier = create_authorization_url(settings)
+    request.session[GOOGLE_OAUTH_STATE_SESSION_KEY] = state
+    request.session[GOOGLE_OAUTH_CODE_VERIFIER_SESSION_KEY] = code_verifier
     return GoogleAuthorizationUrlResponse(authorization_url=authorization_url)
 
 
@@ -35,8 +44,9 @@ def google_login(
     request: Request,
     settings: Settings = Depends(require_google_config),
 ) -> RedirectResponse:
-    authorization_url, state = create_authorization_url(settings)
-    request.session["google_oauth_state"] = state
+    authorization_url, state, code_verifier = create_authorization_url(settings)
+    request.session[GOOGLE_OAUTH_STATE_SESSION_KEY] = state
+    request.session[GOOGLE_OAUTH_CODE_VERIFIER_SESSION_KEY] = code_verifier
     return RedirectResponse(url=authorization_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 
 
@@ -53,7 +63,7 @@ def google_callback(
             detail=f"Google OAuth returned an error: {error}",
         )
 
-    expected_state = request.session.get("google_oauth_state")
+    expected_state = request.session.get(GOOGLE_OAUTH_STATE_SESSION_KEY)
     received_state = request.query_params.get("state")
     if not expected_state or received_state != expected_state:
         raise HTTPException(
@@ -61,11 +71,26 @@ def google_callback(
             detail="Invalid OAuth state. Start the sign-in flow again.",
         )
 
+    code = request.query_params.get("code")
+    if not code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing OAuth authorization code. Start the sign-in flow again.",
+        )
+
+    code_verifier = request.session.get(GOOGLE_OAUTH_CODE_VERIFIER_SESSION_KEY)
+    if not code_verifier:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing OAuth code verifier. Start the sign-in flow again.",
+        )
+
     try:
         credentials = exchange_code_for_credentials(
             settings=settings,
-            authorization_response=str(request.url),
+            code=code,
             state=received_state,
+            code_verifier=code_verifier,
         )
     except GoogleConfigurationError as exc:
         raise HTTPException(
@@ -73,15 +98,17 @@ def google_callback(
             detail=str(exc),
         ) from exc
     except Exception as exc:
+        logger.exception("Google OAuth callback token exchange failed")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Google OAuth callback could not be completed.",
         ) from exc
 
-    existing_session_id = request.session.get("google_session_id")
+    existing_session_id = request.session.get(GOOGLE_SESSION_ID_SESSION_KEY)
     oauth_session = upsert_session_from_credentials(db, credentials, existing_session_id)
-    request.session["google_session_id"] = oauth_session.id
-    request.session.pop("google_oauth_state", None)
+    request.session[GOOGLE_SESSION_ID_SESSION_KEY] = oauth_session.id
+    request.session.pop(GOOGLE_OAUTH_STATE_SESSION_KEY, None)
+    request.session.pop(GOOGLE_OAUTH_CODE_VERIFIER_SESSION_KEY, None)
 
     if settings.google_oauth_success_redirect:
         return RedirectResponse(url=settings.google_oauth_success_redirect, status_code=status.HTTP_302_FOUND)
@@ -104,13 +131,13 @@ def get_auth_status(
     request: Request,
     db: Session = Depends(get_db),
 ) -> AuthStatusResponse:
-    session_id = request.session.get("google_session_id")
+    session_id = request.session.get(GOOGLE_SESSION_ID_SESSION_KEY)
     if not session_id:
         return AuthStatusResponse(is_authenticated=False)
 
     oauth_session = load_session(db, session_id)
     if oauth_session is None:
-        request.session.pop("google_session_id", None)
+        request.session.pop(GOOGLE_SESSION_ID_SESSION_KEY, None)
         return AuthStatusResponse(is_authenticated=False)
 
     return AuthStatusResponse(
@@ -127,8 +154,9 @@ def logout(
     request: Request,
     db: Session = Depends(get_db),
 ) -> LogoutResponse:
-    session_id = request.session.pop("google_session_id", None)
-    request.session.pop("google_oauth_state", None)
+    session_id = request.session.pop(GOOGLE_SESSION_ID_SESSION_KEY, None)
+    request.session.pop(GOOGLE_OAUTH_STATE_SESSION_KEY, None)
+    request.session.pop(GOOGLE_OAUTH_CODE_VERIFIER_SESSION_KEY, None)
 
     if session_id:
         delete_session(db, session_id)
