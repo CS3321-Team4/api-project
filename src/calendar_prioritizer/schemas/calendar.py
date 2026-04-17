@@ -36,6 +36,7 @@ class CalendarEventResponse(BaseModel):
     summary: str | None = None
     description: str | None = None
     location: str | None = None
+    color_id: str | None = None
     html_link: str | None = None
     created: datetime | None = None
     updated: datetime | None = None
@@ -52,3 +53,14 @@ class CalendarEventsResponse(BaseModel):
     time_zone: str | None = None
     items: list[CalendarEventResponse] = Field(default_factory=list)
     next_page_token: str | None = None
+
+
+class EventColorUpdateRequest(BaseModel):
+    color_id: str = Field(min_length=1, description='Google Calendar event color ID to apply.')
+
+
+class EventPriorityResponse(BaseModel):
+    calendar_id: str
+    event_id: str
+    priority: int | None = None
+    color_id: str | None = None

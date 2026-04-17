@@ -1,6 +1,6 @@
 # Calendar Priority API
 
-A FastAPI backend for Google Calendar OAuth 2.0 sign-in and calendar/event retrieval. This version now includes a working server-side OAuth flow, session persistence, and user-scoped calendar read endpoints.
+A FastAPI backend for Google Calendar OAuth 2.0 sign-in and calendar/event retrieval. This version now includes a working server-side OAuth flow, session persistence, user-scoped calendar read endpoints, event color updates, and priority-based event color mapping.
 
 ## Implemented Features
 
@@ -10,6 +10,9 @@ A FastAPI backend for Google Calendar OAuth 2.0 sign-in and calendar/event retri
 - Get one calendar by ID
 - List events for a specific calendar
 - Get a single event from a specific calendar
+- Update a specific event's Google Calendar color
+- Update an event priority from 1 through 5 using mapped Google Calendar colors
+- Read the current event priority from its Google Calendar color
 - Session status and logout endpoints
 - FastAPI test coverage for auth and calendar routes
 
@@ -45,7 +48,22 @@ GET /api/calendars
 GET /api/calendars/{calendar_id}
 GET /api/calendars/{calendar_id}/events
 GET /api/calendars/{calendar_id}/events/{event_id}
+PATCH /api/calendars/{calendar_id}/events/{event_id}
+PATCH /api/calendars/{calendar_id}/events/{event_id}/priority/{priority_id}
+GET /api/calendars/{calendar_id}/events/{event_id}/priority/
 ```
+
+### Priority Mapping
+
+```text
+1 -> Google colorId 9  (blue)
+2 -> Google colorId 10 (green)
+3 -> Google colorId 5  (yellow)
+4 -> Google colorId 6  (orange)
+5 -> Google colorId 11 (red)
+```
+
+If an event's `color_id` is not one of those five Google colors, the priority endpoint returns `null` for `priority`.
 
 ## Required Secrets
 
@@ -58,7 +76,7 @@ GOOGLE_CLIENT_SECRET=your-google-client-secret
 GOOGLE_REDIRECT_URI=http://localhost:8000/api/auth/google/callback
 DATABASE_URL=sqlite:///./app.db
 GOOGLE_OAUTH_SUCCESS_REDIRECT=http://localhost:3000
-GOOGLE_SCOPES=openid,email,profile,https://www.googleapis.com/auth/calendar.readonly
+GOOGLE_SCOPES=openid,email,profile,https://www.googleapis.com/auth/calendar
 ```
 
 Minimum required for the integration to run:
@@ -158,6 +176,18 @@ List events from the primary calendar:
 curl -b cookies.txt -c cookies.txt "http://localhost:8000/api/calendars/primary/events?single_events=true&order_by=startTime"
 ```
 
+Set an event to priority 5:
+
+```bash
+curl -X PATCH -b cookies.txt -c cookies.txt http://localhost:8000/api/calendars/primary/events/event-1/priority/5
+```
+
+Read an event's priority:
+
+```bash
+curl -b cookies.txt -c cookies.txt http://localhost:8000/api/calendars/primary/events/event-1/priority/
+```
+
 ## Tests
 
 ```bash
@@ -177,6 +207,6 @@ uv run pytest
 ## Notes
 
 - OAuth tokens are stored server-side in the configured database.
-- The default scope is read-only Google Calendar access.
+- The default scope includes writable Google Calendar access so event color and priority updates can be pushed to Google.
 - The session cookie is signed, and the OAuth state parameter is validated during callback.
 - For production, set `SESSION_COOKIE_HTTPS_ONLY=true` and use a strong `SESSION_SECRET`.

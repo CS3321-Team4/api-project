@@ -25,11 +25,11 @@ class GoogleCalendarService:
         min_access_role: str | None = None,
         page_token: str | None = None,
     ) -> dict:
-        query_params: dict[str, object] = {"maxResults": max_results}
+        query_params: dict[str, object] = {'maxResults': max_results}
         if min_access_role:
-            query_params["minAccessRole"] = min_access_role
+            query_params['minAccessRole'] = min_access_role
         if page_token:
-            query_params["pageToken"] = page_token
+            query_params['pageToken'] = page_token
 
         return self._execute(lambda service: service.calendarList().list(**query_params))
 
@@ -52,27 +52,36 @@ class GoogleCalendarService:
         show_deleted: bool = False,
     ) -> dict:
         query_params: dict[str, object] = {
-            "calendarId": calendar_id,
-            "maxResults": max_results,
-            "singleEvents": single_events,
-            "showDeleted": show_deleted,
+            'calendarId': calendar_id,
+            'maxResults': max_results,
+            'singleEvents': single_events,
+            'showDeleted': show_deleted,
         }
         if time_min:
-            query_params["timeMin"] = _to_rfc3339(time_min)
+            query_params['timeMin'] = _to_rfc3339(time_min)
         if time_max:
-            query_params["timeMax"] = _to_rfc3339(time_max)
+            query_params['timeMax'] = _to_rfc3339(time_max)
         if page_token:
-            query_params["pageToken"] = page_token
+            query_params['pageToken'] = page_token
         if order_by:
-            query_params["orderBy"] = order_by
+            query_params['orderBy'] = order_by
         if query:
-            query_params["q"] = query
+            query_params['q'] = query
 
         return self._execute(lambda service: service.events().list(**query_params))
 
     def get_event(self, calendar_id: str, event_id: str) -> dict:
         return self._execute(
             lambda service: service.events().get(calendarId=calendar_id, eventId=event_id)
+        )
+
+    def update_event_color(self, calendar_id: str, event_id: str, *, color_id: str) -> dict:
+        return self._execute(
+            lambda service: service.events().patch(
+                calendarId=calendar_id,
+                eventId=event_id,
+                body={'colorId': color_id},
+            )
         )
 
     def _execute(self, request_builder) -> dict:
@@ -83,10 +92,10 @@ class GoogleCalendarService:
                 persist_credentials(self.db, self.oauth_session, credentials)
             except RefreshError as exc:
                 raise ValueError(
-                    "Your Google session has expired. Please sign in again."
+                    'Your Google session has expired. Please sign in again.'
                 ) from exc
 
-        service = build("calendar", "v3", credentials=credentials, cache_discovery=False)
+        service = build('calendar', 'v3', credentials=credentials, cache_discovery=False)
         response = request_builder(service).execute()
         persist_credentials(self.db, self.oauth_session, credentials)
         return response
@@ -97,4 +106,4 @@ def _to_rfc3339(value: datetime) -> str:
     if value.tzinfo is None:
         value = value.replace(tzinfo=timezone.utc)
 
-    return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    return value.astimezone(timezone.utc).isoformat().replace('+00:00', 'Z')
