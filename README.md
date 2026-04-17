@@ -89,7 +89,7 @@ doppler secrets set DATABASE_URL="sqlite:///./app.db"
 Then run the API through Doppler:
 
 ```bash
-doppler run -- uvicorn --app-dir src calendar_prioritizer.main:app --reload
+doppler run -- uv run uvicorn --app-dir src calendar_prioritizer.main:app --reload
 ```
 
 If you use Docker locally, run Docker through Doppler as well:
@@ -98,8 +98,8 @@ If you use Docker locally, run Docker through Doppler as well:
 doppler run -- docker compose up --build
 ```
 
-
 The container project root is `/src/calendar-prioritizer`, and the Python package now lives at `src/calendar_prioritizer`.
+
 ## Google Cloud Configuration
 
 In the Google Cloud Console, create a Web application OAuth client and add this redirect URI for local development:
@@ -115,13 +115,13 @@ If you deploy this API, the deployed callback URL must also be added to the same
 1. Install dependencies.
 
 ```bash
-pip install -r requirements.txt
+uv sync
 ```
 
 2. Start the API with Doppler.
 
 ```bash
-doppler run -- uvicorn --app-dir src calendar_prioritizer.main:app --reload
+doppler run -- uv run uvicorn --app-dir src calendar_prioritizer.main:app --reload
 ```
 
 3. Open the docs.
@@ -161,7 +161,17 @@ curl -b cookies.txt -c cookies.txt "http://localhost:8000/api/calendars/primary/
 ## Tests
 
 ```bash
-pytest
+uv run pytest
+```
+
+## UV Workflow
+
+This project now uses `uv` for dependency and environment management.
+
+```bash
+uv sync
+uv run uvicorn --app-dir src calendar_prioritizer.main:app --reload
+uv run pytest
 ```
 
 ## Notes
