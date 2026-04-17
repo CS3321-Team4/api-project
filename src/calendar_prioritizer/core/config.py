@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Annotated
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 DEFAULT_GOOGLE_SCOPES = (
     "openid",
@@ -28,7 +29,7 @@ class Settings(BaseSettings):
     google_oauth_success_redirect: str | None = None
     google_auth_uri: str = "https://accounts.google.com/o/oauth2/auth"
     google_token_uri: str = "https://oauth2.googleapis.com/token"
-    google_scopes: list[str] = Field(default_factory=lambda: list(DEFAULT_GOOGLE_SCOPES))
+    google_scopes: Annotated[list[str], NoDecode] = Field(default_factory=lambda: list(DEFAULT_GOOGLE_SCOPES))
     google_prompt: str = "consent"
 
     model_config = SettingsConfigDict(
@@ -56,3 +57,4 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
