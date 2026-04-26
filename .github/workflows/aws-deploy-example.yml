@@ -1,0 +1,27 @@
+name: AWS Deploy Example
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Doppler CLI
+        uses: dopplerhq/cli-action@v3
+
+      - name: Verify Doppler secrets access
+        run: doppler secrets download --no-file --format env > .env
+
+      - name: Build Docker image
+        run: docker build -t calendar-prioritizer .
+
+      - name: Reminder
+        run: echo "Use GitHub secret DOPPLER_TOKEN to access Doppler secrets during deployment."
