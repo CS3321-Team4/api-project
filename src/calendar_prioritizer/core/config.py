@@ -25,7 +25,11 @@ class Settings(BaseSettings):
     session_cookie_https_only: bool = False
     google_client_id: str | None = None
     google_client_secret: str | None = None
+<<<<<<< HEAD
     google_redirect_uri: str = 'http://localhost/api/auth/google/callback'
+=======
+    google_redirect_uri: str = 'http://localhost:8000/api/auth/google/callback'
+>>>>>>> dev
     google_oauth_success_redirect: str | None = None
     google_auth_uri: str = 'https://accounts.google.com/o/oauth2/auth'
     google_token_uri: str = 'https://oauth2.googleapis.com/token'

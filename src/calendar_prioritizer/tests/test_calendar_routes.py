@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from calendar_prioritizer.api.dependencies import get_google_calendar_service
+<<<<<<< HEAD
 from calendar_prioritizer.services.google_calendar import GoogleCalendarConnectionError
+=======
+>>>>>>> dev
 
 
 class FakeGoogleCalendarService:
@@ -77,6 +80,7 @@ class FakeGoogleCalendarService:
         }
 
 
+<<<<<<< HEAD
 class TimeoutGoogleCalendarService:
     def list_calendars(self, **kwargs):
         raise GoogleCalendarConnectionError(
@@ -84,6 +88,8 @@ class TimeoutGoogleCalendarService:
         )
 
 
+=======
+>>>>>>> dev
 
 def test_list_calendars_requires_auth(client) -> None:
     response = client.get('/api/calendars')
@@ -121,6 +127,7 @@ def test_list_calendars_returns_serialized_response(client) -> None:
     client.app.dependency_overrides.clear()
 
 
+<<<<<<< HEAD
 def test_list_calendars_returns_gateway_timeout_for_google_timeout(client) -> None:
     client.app.dependency_overrides[get_google_calendar_service] = lambda: TimeoutGoogleCalendarService()
 
@@ -134,6 +141,8 @@ def test_list_calendars_returns_gateway_timeout_for_google_timeout(client) -> No
     client.app.dependency_overrides.clear()
 
 
+=======
+>>>>>>> dev
 
 def test_list_events_returns_calendar_events(client) -> None:
     client.app.dependency_overrides[get_google_calendar_service] = lambda: FakeGoogleCalendarService()

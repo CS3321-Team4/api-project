@@ -6,12 +6,15 @@ resolution-markers = [
     "python_full_version < '3.13'",
 ]
 
+<<<<<<< HEAD
 [manifest]
 members = [
     "calendar-prioritizer",
     "tests",
 ]
 
+=======
+>>>>>>> dev
 [[package]]
 name = "annotated-doc"
 version = "0.0.4"
@@ -754,11 +757,14 @@ wheels = [
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "tests"
 version = "0.1.0"
 source = { virtual = "src/calendar_prioritizer/tests" }
 
 [[package]]
+=======
+>>>>>>> dev
 name = "typing-extensions"
 version = "4.15.0"
 source = { registry = "https://pypi.org/simple" }
