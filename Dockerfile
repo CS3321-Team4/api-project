@@ -11,6 +11,6 @@ RUN uv sync --frozen --no-dev
 
 COPY . .
 
-EXPOSE 8000
+EXPOSE 80
 
-CMD ["uv", "run", "uvicorn", "--app-dir", "src", "calendar_prioritizer.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "uvicorn", "--app-dir", "src", "calendar_prioritizer.main:app", "--host", "0.0.0.0", "--port", "80"]

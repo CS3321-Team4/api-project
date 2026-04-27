@@ -1,13 +1,18 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from calendar_prioritizer.api.router import api_router
 from calendar_prioritizer.core.config import Settings, get_settings
 from calendar_prioritizer.db.session import create_engine_from_settings, create_session_factory, init_db
+
+STATIC_DIR = Path(__file__).parent / "static"
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -38,14 +43,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         https_only=app_settings.session_cookie_https_only,
     )
     app.include_router(api_router, prefix=app_settings.api_v1_prefix)
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
     @app.get("/")
-    def read_root() -> dict[str, str]:
-        return {
-            "message": f"{app_settings.app_name} is running",
-            "docs_url": "/docs",
-            "api_prefix": app_settings.api_v1_prefix,
-        }
+    def read_root() -> FileResponse:
+        return FileResponse(STATIC_DIR / "index.html")
 
     @app.get("/health")
     def health_check() -> dict[str, str]:

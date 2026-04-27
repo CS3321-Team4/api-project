@@ -12,6 +12,18 @@ from calendar_prioritizer.models.oauth_session import OAuthSession
 from calendar_prioritizer.services.google_oauth import build_credentials, persist_credentials
 
 
+class GoogleCalendarConnectionError(RuntimeError):
+    pass
+
+
+GOOGLE_CALENDAR_CONNECTION_ERROR_MESSAGE = (
+    'Google Calendar could not be reached. Please check your network connection and try again.'
+)
+GOOGLE_CALENDAR_TIMEOUT_ERROR_MESSAGE = (
+    'Google Calendar did not respond before the request timed out. Please try again.'
+)
+
+
 class GoogleCalendarService:
     def __init__(self, db: Session, settings: Settings, oauth_session: OAuthSession):
         self.db = db
@@ -94,9 +106,19 @@ class GoogleCalendarService:
                 raise ValueError(
                     'Your Google session has expired. Please sign in again.'
                 ) from exc
+            except TimeoutError as exc:
+                raise GoogleCalendarConnectionError(GOOGLE_CALENDAR_TIMEOUT_ERROR_MESSAGE) from exc
+            except OSError as exc:
+                raise GoogleCalendarConnectionError(GOOGLE_CALENDAR_CONNECTION_ERROR_MESSAGE) from exc
 
         service = build('calendar', 'v3', credentials=credentials, cache_discovery=False)
-        response = request_builder(service).execute()
+        try:
+            response = request_builder(service).execute()
+        except TimeoutError as exc:
+            raise GoogleCalendarConnectionError(GOOGLE_CALENDAR_TIMEOUT_ERROR_MESSAGE) from exc
+        except OSError as exc:
+            raise GoogleCalendarConnectionError(GOOGLE_CALENDAR_CONNECTION_ERROR_MESSAGE) from exc
+
         persist_credentials(self.db, self.oauth_session, credentials)
         return response
 

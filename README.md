@@ -1,6 +1,6 @@
 # Calendar Priority API
 
-A FastAPI backend for Google Calendar OAuth 2.0 sign-in and calendar/event retrieval. This version now includes a working server-side OAuth flow, session persistence, user-scoped calendar read endpoints, event color updates, and priority-based event color mapping.
+A FastAPI app for Google Calendar OAuth 2.0 sign-in, calendar/event retrieval, priority updates, and a browser dashboard. This version includes a working server-side OAuth flow, session persistence, user-scoped calendar read endpoints, event color updates, priority-based event color mapping, and a frontend served by the same FastAPI process.
 
 ## Implemented Features
 
@@ -13,17 +13,20 @@ A FastAPI backend for Google Calendar OAuth 2.0 sign-in and calendar/event retri
 - Update a specific event's Google Calendar color
 - Update an event priority from 1 through 5 using mapped Google Calendar colors
 - Read the current event priority from its Google Calendar color
+- Browser dashboard for signing in, selecting a calendar, viewing events by priority, and changing event priority
 - Session status and logout endpoints
 - FastAPI test coverage for auth and calendar routes
 
 ## API Endpoints
 
-### App health
+### Frontend and app health
 
 ```http
 GET /
 GET /health
 ```
+
+`/` serves the browser dashboard. `/health` returns a JSON health response.
 
 ### Auth
 
@@ -73,9 +76,9 @@ Since you're using Doppler, these are the secrets you should add there:
 SESSION_SECRET=replace-with-a-long-random-string
 GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=your-google-client-secret
-GOOGLE_REDIRECT_URI=http://localhost:8000/api/auth/google/callback
+GOOGLE_REDIRECT_URI=http://localhost/api/auth/google/callback
 DATABASE_URL=sqlite:///./app.db
-GOOGLE_OAUTH_SUCCESS_REDIRECT=http://localhost:3000
+GOOGLE_OAUTH_SUCCESS_REDIRECT=http://localhost/
 GOOGLE_SCOPES=openid,email,profile,https://www.googleapis.com/auth/calendar
 ```
 
@@ -100,14 +103,14 @@ Example workflow:
 doppler secrets set SESSION_SECRET="replace-with-a-long-random-string"
 doppler secrets set GOOGLE_CLIENT_ID="your-google-client-id.apps.googleusercontent.com"
 doppler secrets set GOOGLE_CLIENT_SECRET="your-google-client-secret"
-doppler secrets set GOOGLE_REDIRECT_URI="http://localhost:8000/api/auth/google/callback"
+doppler secrets set GOOGLE_REDIRECT_URI="http://localhost/api/auth/google/callback"
 doppler secrets set DATABASE_URL="sqlite:///./app.db"
 ```
 
 Then run the API through Doppler:
 
 ```bash
-doppler run -- uv run uvicorn --app-dir src calendar_prioritizer.main:app --reload
+doppler run -- uv run uvicorn --app-dir src calendar_prioritizer.main:app --host 0.0.0.0 --port 80 --reload
 ```
 
 If you use Docker locally, run Docker through Doppler as well:
@@ -123,7 +126,7 @@ The container project root is `/src/calendar-prioritizer`, and the Python packag
 In the Google Cloud Console, create a Web application OAuth client and add this redirect URI for local development:
 
 ```text
-http://localhost:8000/api/auth/google/callback
+http://localhost/api/auth/google/callback
 ```
 
 If you deploy this API, the deployed callback URL must also be added to the same OAuth client.
@@ -139,21 +142,27 @@ uv sync
 2. Start the API with Doppler.
 
 ```bash
-doppler run -- uv run uvicorn --app-dir src calendar_prioritizer.main:app --reload
+doppler run -- uv run uvicorn --app-dir src calendar_prioritizer.main:app --host 0.0.0.0 --port 80 --reload
 ```
 
-3. Open the docs.
+3. Open the dashboard.
 
 ```text
-http://localhost:8000/docs
+http://localhost/
 ```
 
-4. Start authentication.
-
-Open either:
+4. Open the docs.
 
 ```text
-http://localhost:8000/api/auth/google/login
+http://localhost/docs
+```
+
+5. Start authentication.
+
+Use the dashboard's Google sign-in button, or open:
+
+```text
+http://localhost/api/auth/google/login
 ```
 
 or call:
@@ -167,25 +176,25 @@ GET /api/auth/google/url
 List calendars after signing in:
 
 ```bash
-curl -b cookies.txt -c cookies.txt http://localhost:8000/api/calendars
+curl -b cookies.txt -c cookies.txt http://localhost/api/calendars
 ```
 
 List events from the primary calendar:
 
 ```bash
-curl -b cookies.txt -c cookies.txt "http://localhost:8000/api/calendars/primary/events?single_events=true&order_by=startTime"
+curl -b cookies.txt -c cookies.txt "http://localhost/api/calendars/primary/events?single_events=true&order_by=startTime"
 ```
 
 Set an event to priority 5:
 
 ```bash
-curl -X PATCH -b cookies.txt -c cookies.txt http://localhost:8000/api/calendars/primary/events/event-1/priority/5
+curl -X PATCH -b cookies.txt -c cookies.txt http://localhost/api/calendars/primary/events/event-1/priority/5
 ```
 
 Read an event's priority:
 
 ```bash
-curl -b cookies.txt -c cookies.txt http://localhost:8000/api/calendars/primary/events/event-1/priority/
+curl -b cookies.txt -c cookies.txt http://localhost/api/calendars/primary/events/event-1/priority/
 ```
 
 ## Tests
@@ -200,7 +209,7 @@ This project now uses `uv` for dependency and environment management.
 
 ```bash
 uv sync
-uv run uvicorn --app-dir src calendar_prioritizer.main:app --reload
+uv run uvicorn --app-dir src calendar_prioritizer.main:app --host 0.0.0.0 --port 80 --reload
 uv run pytest
 ```
 
@@ -210,3 +219,4 @@ uv run pytest
 - The default scope includes writable Google Calendar access so event color and priority updates can be pushed to Google.
 - The session cookie is signed, and the OAuth state parameter is validated during callback.
 - For production, set `SESSION_COOKIE_HTTPS_ONLY=true` and use a strong `SESSION_SECRET`.
+- Binding to port 80 can require administrator privileges on some local machines.

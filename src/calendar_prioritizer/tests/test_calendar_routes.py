@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from calendar_prioritizer.api.dependencies import get_google_calendar_service
+from calendar_prioritizer.services.google_calendar import GoogleCalendarConnectionError
 
 
 class FakeGoogleCalendarService:
@@ -76,6 +77,13 @@ class FakeGoogleCalendarService:
         }
 
 
+class TimeoutGoogleCalendarService:
+    def list_calendars(self, **kwargs):
+        raise GoogleCalendarConnectionError(
+            'Google Calendar did not respond before the request timed out. Please try again.'
+        )
+
+
 
 def test_list_calendars_requires_auth(client) -> None:
     response = client.get('/api/calendars')
@@ -108,6 +116,19 @@ def test_list_calendars_returns_serialized_response(client) -> None:
             }
         ],
         'next_page_token': None,
+    }
+
+    client.app.dependency_overrides.clear()
+
+
+def test_list_calendars_returns_gateway_timeout_for_google_timeout(client) -> None:
+    client.app.dependency_overrides[get_google_calendar_service] = lambda: TimeoutGoogleCalendarService()
+
+    response = client.get('/api/calendars')
+
+    assert response.status_code == 504
+    assert response.json() == {
+        'detail': 'Google Calendar did not respond before the request timed out. Please try again.'
     }
 
     client.app.dependency_overrides.clear()
