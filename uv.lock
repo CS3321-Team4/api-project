@@ -6,15 +6,14 @@ resolution-markers = [
     "python_full_version < '3.13'",
 ]
 
-<<<<<<< HEAD
+
 [manifest]
 members = [
     "calendar-prioritizer",
     "tests",
 ]
 
-=======
->>>>>>> dev
+
 [[package]]
 name = "annotated-doc"
 version = "0.0.4"
