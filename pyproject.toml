@@ -29,3 +29,8 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/calendar_prioritizer"]
+
+[tool.uv.workspace]
+members = [
+    "src/calendar_prioritizer/tests",
+]

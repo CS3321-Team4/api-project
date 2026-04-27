@@ -16,7 +16,11 @@ from calendar_prioritizer.schemas.calendar import (
     EventDateTimeInfo,
     EventPriorityResponse,
 )
+<<<<<<< HEAD
+from calendar_prioritizer.services.google_calendar import GoogleCalendarConnectionError, GoogleCalendarService
+=======
 from calendar_prioritizer.services.google_calendar import GoogleCalendarService
+>>>>>>> dev
 from calendar_prioritizer.services.priorities import get_color_id_for_priority, get_priority_for_color_id
 
 router = APIRouter(prefix='/calendars', tags=['google-calendar'])
@@ -37,6 +41,11 @@ def list_calendars(
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+<<<<<<< HEAD
+    except GoogleCalendarConnectionError as exc:
+        _raise_google_connection_error(exc)
+=======
+>>>>>>> dev
     except HttpError as exc:
         _raise_google_error(exc)
 
@@ -55,6 +64,11 @@ def get_calendar(
         payload = service.get_calendar(calendar_id)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+<<<<<<< HEAD
+    except GoogleCalendarConnectionError as exc:
+        _raise_google_connection_error(exc)
+=======
+>>>>>>> dev
     except HttpError as exc:
         _raise_google_error(exc)
 
@@ -94,6 +108,11 @@ def list_events(
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+<<<<<<< HEAD
+    except GoogleCalendarConnectionError as exc:
+        _raise_google_connection_error(exc)
+=======
+>>>>>>> dev
     except HttpError as exc:
         _raise_google_error(exc)
 
@@ -115,6 +134,11 @@ def get_event(
         payload = service.get_event(calendar_id=calendar_id, event_id=event_id)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+<<<<<<< HEAD
+    except GoogleCalendarConnectionError as exc:
+        _raise_google_connection_error(exc)
+=======
+>>>>>>> dev
     except HttpError as exc:
         _raise_google_error(exc)
 
@@ -136,6 +160,11 @@ def update_event_color(
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+<<<<<<< HEAD
+    except GoogleCalendarConnectionError as exc:
+        _raise_google_connection_error(exc)
+=======
+>>>>>>> dev
     except HttpError as exc:
         _raise_google_error(exc)
 
@@ -158,6 +187,11 @@ def update_event_priority(
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+<<<<<<< HEAD
+    except GoogleCalendarConnectionError as exc:
+        _raise_google_connection_error(exc)
+=======
+>>>>>>> dev
     except HttpError as exc:
         _raise_google_error(exc)
 
@@ -178,6 +212,11 @@ def get_event_priority(
         response = service.get_event(calendar_id=calendar_id, event_id=event_id)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+<<<<<<< HEAD
+    except GoogleCalendarConnectionError as exc:
+        _raise_google_connection_error(exc)
+=======
+>>>>>>> dev
     except HttpError as exc:
         _raise_google_error(exc)
 
@@ -252,3 +291,10 @@ def _serialize_event_time(payload: dict | None) -> EventDateTimeInfo | None:
 def _raise_google_error(exc: HttpError) -> None:
     reason = getattr(exc, 'reason', None) or str(exc)
     raise HTTPException(status_code=exc.resp.status, detail=reason) from exc
+<<<<<<< HEAD
+
+
+def _raise_google_connection_error(exc: GoogleCalendarConnectionError) -> None:
+    raise HTTPException(status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail=str(exc)) from exc
+=======
+>>>>>>> dev
