@@ -1,0 +1,59 @@
+name: AWS Deploy Example
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      DOPPLER_TOKEN: ${{ secrets.DOPPLER_GH_SERVICE_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Doppler CLI
+        uses: dopplerhq/cli-action@v3
+
+      - name: Verify Doppler secrets access
+        run: doppler secrets download --no-file --format env > .env
+
+      - name: Build Docker image
+        run: docker build -t calendar-prioritizer .
+
+      - name: Save Docker image
+        run: docker save calendar-prioritizer | gzip > calendar-prioritizer.tar.gz
+
+      - name: Prepare SSH key
+        run: |
+          mkdir -p ~/.ssh
+          doppler secrets get SSH_AWS_PEM --plain > ~/.ssh/ec2_key.pem
+          chmod 600 ~/.ssh/ec2_key.pem
+
+      - name: Copy Docker image to EC2
+        run: |
+          scp -o StrictHostKeyChecking=no \
+            -i ~/.ssh/ec2_key.pem \
+            calendar-prioritizer.tar.gz \
+            $(doppler secrets get AWS_EC2_USERNAME --plain)@$(doppler secrets get AWS_IP --plain):~/calendar-prioritizer.tar.gz
+
+      - name: Deploy Docker container on EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no \
+            -i ~/.ssh/ec2_key.pem \
+            $(doppler secrets get AWS_EC2_USERNAME --plain)@$(doppler secrets get AWS_IP --plain) << 'EOF'
+              sudo docker load < ~/calendar-prioritizer.tar.gz
+              sudo docker stop calendar-prioritizer || true
+              sudo docker rm calendar-prioritizer || true
+              sudo docker run -d \
+                --name calendar-prioritizer \
+                -p 80:80 \
+                -v calendar-prioritizer-data:/data \
+                calendar-prioritizer
+              sudo docker ps
+          EOF
+
+      - name: Deployment reminder
+        run: echo "Deployment finished. Check http://$(doppler secrets get AWS_IP --plain)/docs"
