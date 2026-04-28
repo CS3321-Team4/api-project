@@ -75,6 +75,35 @@ jobs:
         with:
           doppler-token: ${{ secrets.DOPPLER_GH_SERVICE_TOKEN }}
 
+      - name: Validate Docker credentials
+        env:
+          DOCKER_USERNAME: ${{ steps.doppler.outputs.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ steps.doppler.outputs.DOCKER_PASSWORD }}
+        run: |
+          if [ -z "$DOCKER_USERNAME" ]; then
+            echo "Doppler did not provide DOCKER_USERNAME."
+            exit 1
+          fi
+
+          if [ -z "$DOCKER_PASSWORD" ]; then
+            echo "Doppler did not provide DOCKER_PASSWORD."
+            exit 1
+          fi
+
+          case "$DOCKER_USERNAME" in
+            *[[:space:]]*)
+              echo "DOCKER_USERNAME contains whitespace. Use the Docker ID, not an email address or display name."
+              exit 1
+              ;;
+          esac
+
+          case "$DOCKER_PASSWORD" in
+            *$'\n'*|*$'\r'*)
+              echo "DOCKER_PASSWORD contains a newline. Store the raw Docker Hub access token without extra line breaks."
+              exit 1
+              ;;
+          esac
+
       - name: Configure Docker image name
         env:
           DOCKER_USERNAME: ${{ steps.doppler.outputs.DOCKER_USERNAME }}
@@ -120,7 +149,7 @@ jobs:
         uses: dopplerhq/secrets-fetch-action@v1.2.0
         id: doppler
         with:
-          doppler-token: ${{ secrets.DOPPLER_SERVICE_TOKEN }}
+          doppler-token: ${{ secrets.DOPPLER_GH_SERVICE_TOKEN }}
 
       - name: Deploy over SSH
         uses: appleboy/ssh-action@master
@@ -142,6 +171,16 @@ jobs:
           key: ${{ steps.doppler.outputs.SSH_AWS_PEM }}
           envs: DOCKER_USERNAME,DOCKER_PASSWORD,DOCKER_IMAGE,SESSION_SECRET,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET,GOOGLE_REDIRECT_URI,GOOGLE_OAUTH_SUCCESS_REDIRECT,GOOGLE_SCOPES,DATABASE_URL,SESSION_COOKIE_HTTPS_ONLY
           script: |
+            if [ -z "$DOCKER_USERNAME" ]; then
+              echo "Doppler did not provide DOCKER_USERNAME."
+              exit 1
+            fi
+
+            if [ -z "$DOCKER_PASSWORD" ]; then
+              echo "Doppler did not provide DOCKER_PASSWORD."
+              exit 1
+            fi
+
             IMAGE_NAME="${DOCKER_IMAGE:-$DOCKER_USERNAME/calendar-prioritizer}"
 
             if [ -z "$IMAGE_NAME" ]; then

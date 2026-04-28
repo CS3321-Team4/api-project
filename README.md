@@ -214,7 +214,7 @@ The repository includes `.github/workflows/ci.yml`, which follows the professor'
 GitHub needs one repository secret:
 
 ```text
-DOPPLER_SERVICE_TOKEN
+DOPPLER_GH_SERVICE_TOKEN
 ```
 
 Doppler should provide these deployment secrets:
