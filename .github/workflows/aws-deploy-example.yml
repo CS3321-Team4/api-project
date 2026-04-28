@@ -32,12 +32,58 @@ jobs:
           doppler secrets get SSH_AWS_PEM --plain > ~/.ssh/ec2_key.pem
           chmod 600 ~/.ssh/ec2_key.pem
 
+      - name: Prepare app environment
+        run: |
+          require_secret() {
+            local name="$1"
+            local value
+            value="$(doppler secrets get "$name" --plain)"
+
+            if [ -z "$value" ]; then
+              echo "Doppler did not provide $name."
+              exit 1
+            fi
+
+            printf '%s=%s\n' "$name" "$value" >> calendar-prioritizer.env
+          }
+
+          optional_secret() {
+            local name="$1"
+            local value
+            value="$(doppler secrets get "$name" --plain 2>/dev/null || true)"
+
+            if [ -n "$value" ]; then
+              printf '%s=%s\n' "$name" "$value" >> calendar-prioritizer.env
+            fi
+          }
+
+          : > calendar-prioritizer.env
+          require_secret SESSION_SECRET
+          require_secret GOOGLE_CLIENT_ID
+          require_secret GOOGLE_CLIENT_SECRET
+          require_secret GOOGLE_REDIRECT_URI
+          optional_secret GOOGLE_OAUTH_SUCCESS_REDIRECT
+          optional_secret GOOGLE_SCOPES
+          optional_secret DATABASE_URL
+          optional_secret SESSION_COOKIE_HTTPS_ONLY
+          chmod 600 calendar-prioritizer.env
+
+      - name: Validate app environment
+        run: |
+          if ! grep -q '^GOOGLE_CLIENT_ID=.' calendar-prioritizer.env ||
+             ! grep -q '^GOOGLE_CLIENT_SECRET=.' calendar-prioritizer.env; then
+            echo "Google OAuth credentials are missing from the container environment."
+            exit 1
+          fi
+
+          echo "Required Google OAuth credentials are set."
+
       - name: Copy Docker image to EC2
         run: |
           scp -o StrictHostKeyChecking=no \
             -i ~/.ssh/ec2_key.pem \
-            calendar-prioritizer.tar.gz \
-            $(doppler secrets get AWS_EC2_USERNAME --plain)@$(doppler secrets get AWS_IP --plain):~/calendar-prioritizer.tar.gz
+            calendar-prioritizer.tar.gz calendar-prioritizer.env \
+            $(doppler secrets get AWS_EC2_USERNAME --plain)@$(doppler secrets get AWS_IP --plain):~/
 
       - name: Deploy Docker container on EC2
         run: |
@@ -47,11 +93,14 @@ jobs:
               sudo docker load < ~/calendar-prioritizer.tar.gz
               sudo docker stop calendar-prioritizer || true
               sudo docker rm calendar-prioritizer || true
+
               sudo docker run -d \
                 --name calendar-prioritizer \
                 -p 80:80 \
                 -v calendar-prioritizer-data:/data \
+                --env-file ~/calendar-prioritizer.env \
                 calendar-prioritizer
+              rm -f ~/calendar-prioritizer.env
               sudo docker ps
           EOF
 

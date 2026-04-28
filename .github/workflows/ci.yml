@@ -181,6 +181,21 @@ jobs:
               exit 1
             fi
 
+            if [ -z "$GOOGLE_CLIENT_ID" ]; then
+              echo "Doppler did not provide GOOGLE_CLIENT_ID."
+              exit 1
+            fi
+
+            if [ -z "$GOOGLE_CLIENT_SECRET" ]; then
+              echo "Doppler did not provide GOOGLE_CLIENT_SECRET."
+              exit 1
+            fi
+
+            if [ -z "$GOOGLE_REDIRECT_URI" ]; then
+              echo "Doppler did not provide GOOGLE_REDIRECT_URI."
+              exit 1
+            fi
+
             IMAGE_NAME="${DOCKER_IMAGE:-$DOCKER_USERNAME/calendar-prioritizer}"
 
             if [ -z "$IMAGE_NAME" ]; then
