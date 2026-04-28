@@ -73,7 +73,7 @@ jobs:
         uses: dopplerhq/secrets-fetch-action@v1.2.0
         id: doppler
         with:
-          doppler-token: ${{ secrets.DOPPLER_SERVICE_TOKEN }}
+          doppler-token: ${{ secrets.DOPPLER_GH_SERVICE_TOKEN }}
 
       - name: Configure Docker image name
         env:
