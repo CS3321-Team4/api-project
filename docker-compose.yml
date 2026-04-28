@@ -1,0 +1,16 @@
+services:
+  api:
+    build: .
+    ports:
+      - "80:80"
+    command: uv run uvicorn --app-dir src calendar_prioritizer.main:app --host 0.0.0.0 --port 80 --reload
+    volumes:
+      - .:/src/calendar-prioritizer
+    environment:
+      SESSION_SECRET: ${SESSION_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI}
+      DATABASE_URL: ${DATABASE_URL}
+      GOOGLE_OAUTH_SUCCESS_REDIRECT: ${GOOGLE_OAUTH_SUCCESS_REDIRECT}
+      GOOGLE_SCOPES: ${GOOGLE_SCOPES}

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Calendar Priority</title>
+    <link rel="icon" href="/static/mark.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/static/styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <a class="brand" href="/" aria-label="Calendar Priority home">
+        <img src="/static/mark.svg" alt="" width="32" height="32">
+        <span>Calendar Priority</span>
+      </a>
+      <div class="session-bar">
+        <span id="authStatus" class="auth-status">Checking session</span>
+        <button id="refreshButton" class="button button-ghost" type="button">Refresh</button>
+        <button id="authActionButton" class="button button-primary" type="button">Sign in with Google</button>
+      </div>
+    </header>
+
+    <main class="app-shell">
+      <aside class="control-rail" aria-label="Calendar controls">
+        <section class="panel">
+          <label for="calendarSelect">Calendar</label>
+          <select id="calendarSelect" disabled>
+            <option value="">No calendars loaded</option>
+          </select>
+          <div id="calendarMeta" class="muted">Not connected</div>
+        </section>
+
+        <section class="panel">
+          <label for="eventSearch">Search</label>
+          <input id="eventSearch" type="search" placeholder="Event, place, organizer" autocomplete="off">
+
+          <label for="rangeFilter">Range</label>
+          <select id="rangeFilter">
+            <option value="all">All loaded events</option>
+            <option value="upcoming">Upcoming only</option>
+          </select>
+        </section>
+      </aside>
+
+      <section class="workspace" aria-labelledby="viewTitle">
+        <div class="workspace-top">
+          <div>
+            <p id="viewKicker" class="kicker">Calendar</p>
+            <h1 id="viewTitle">Events</h1>
+          </div>
+          <div class="stats-row" aria-label="Event counts">
+            <div>
+              <span id="eventCount" class="stat-value">0</span>
+              <span class="stat-label">events</span>
+            </div>
+            <div>
+              <span id="prioritizedCount" class="stat-value">0</span>
+              <span class="stat-label">prioritized</span>
+            </div>
+            <div>
+              <span id="unprioritizedCount" class="stat-value">0</span>
+              <span class="stat-label">unprioritized</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="alert" class="alert" role="alert" hidden></div>
+        <div id="eventGroups" class="priority-board" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <template id="eventTemplate">
+      <article class="event-row">
+        <div class="event-main">
+          <div class="event-time"></div>
+          <h3 class="event-title"></h3>
+          <div class="event-details"></div>
+        </div>
+        <div class="event-actions">
+          <div class="priority-buttons" role="group" aria-label="Set priority"></div>
+          <a class="event-link" href="#" target="_blank" rel="noreferrer" hidden>Open</a>
+        </div>
+      </article>
+    </template>
+
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>
