@@ -118,11 +118,7 @@ def google_callback(
         <html>
             <body>
                 <h1>Google Calendar connected</h1>
-<<<<<<< HEAD
                 <p><a href="/">Open the priority dashboard</a> or continue testing the API in <code>/docs</code>.</p>
-=======
-                <p>You can return to your app or continue testing the API in <code>/docs</code>.</p>
->>>>>>> dev
             </body>
         </html>
         """,

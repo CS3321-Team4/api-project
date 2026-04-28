@@ -203,6 +203,43 @@ curl -b cookies.txt -c cookies.txt http://localhost/api/calendars/primary/events
 uv run pytest
 ```
 
+## GitHub Actions
+
+The repository includes `.github/workflows/ci.yml`, which follows the professor's CI/CD shape:
+
+- `Coverage` installs dependencies with `uv sync --frozen`, runs pytest through coverage, and requires at least 80% coverage.
+- `Build & Push` runs only for `main` pushes or manual dispatches, builds the wheel, fetches Docker credentials from Doppler, tags the Docker image as `latest` and the commit SHA, and pushes both tags.
+- `Deploy` runs after a successful image push, fetches deployment secrets from Doppler, SSHes into AWS, pulls the latest image, and restarts the container.
+
+GitHub needs one repository secret:
+
+```text
+DOPPLER_SERVICE_TOKEN
+```
+
+Doppler should provide these deployment secrets:
+
+```text
+DOCKER_USERNAME
+DOCKER_PASSWORD
+DOCKER_IMAGE
+AWS_IP
+AWS_EC2_USERNAME
+SSH_AWS_PEM
+SESSION_SECRET
+GOOGLE_CLIENT_ID
+GOOGLE_CLIENT_SECRET
+GOOGLE_REDIRECT_URI
+GOOGLE_OAUTH_SUCCESS_REDIRECT
+GOOGLE_SCOPES
+DATABASE_URL
+SESSION_COOKIE_HTTPS_ONLY
+```
+
+`DOCKER_IMAGE` is optional. If it is not set, the workflow uses `DOCKER_USERNAME/calendar-prioritizer`.
+
+For branch protection, require the `Coverage` status check before merging into `main`.
+
 ## UV Workflow
 
 This project now uses `uv` for dependency and environment management.
