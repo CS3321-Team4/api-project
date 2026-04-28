@@ -165,11 +165,13 @@ jobs:
           GOOGLE_SCOPES: ${{ steps.doppler.outputs.GOOGLE_SCOPES }}
           DATABASE_URL: ${{ steps.doppler.outputs.DATABASE_URL }}
           SESSION_COOKIE_HTTPS_ONLY: ${{ steps.doppler.outputs.SESSION_COOKIE_HTTPS_ONLY }}
+          APP_DOMAIN: ${{ steps.doppler.outputs.APP_DOMAIN }}
+          ACME_EMAIL: ${{ steps.doppler.outputs.ACME_EMAIL }}
         with:
           host: ${{ steps.doppler.outputs.AWS_IP }}
           username: ${{ steps.doppler.outputs.AWS_EC2_USERNAME }}
           key: ${{ steps.doppler.outputs.SSH_AWS_PEM }}
-          envs: DOCKER_USERNAME,DOCKER_PASSWORD,DOCKER_IMAGE,SESSION_SECRET,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET,GOOGLE_REDIRECT_URI,GOOGLE_OAUTH_SUCCESS_REDIRECT,GOOGLE_SCOPES,DATABASE_URL,SESSION_COOKIE_HTTPS_ONLY
+          envs: DOCKER_USERNAME,DOCKER_PASSWORD,DOCKER_IMAGE,SESSION_SECRET,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET,GOOGLE_REDIRECT_URI,GOOGLE_OAUTH_SUCCESS_REDIRECT,GOOGLE_SCOPES,DATABASE_URL,SESSION_COOKIE_HTTPS_ONLY,APP_DOMAIN,ACME_EMAIL
           script: |
             if [ -z "$DOCKER_USERNAME" ]; then
               echo "Doppler did not provide DOCKER_USERNAME."
@@ -196,6 +198,33 @@ jobs:
               exit 1
             fi
 
+            if [ -z "$APP_DOMAIN" ]; then
+              echo "Doppler did not provide APP_DOMAIN. Set it to your HTTPS domain, for example app.example.com."
+              exit 1
+            fi
+
+            case "$APP_DOMAIN" in
+              http://*|https://*|*/*|*:*)
+                echo "APP_DOMAIN must be only the hostname, without scheme, path, or port."
+                exit 1
+                ;;
+            esac
+
+            if [ "$GOOGLE_REDIRECT_URI" != "https://$APP_DOMAIN/api/auth/google/callback" ]; then
+              echo "GOOGLE_REDIRECT_URI must be https://$APP_DOMAIN/api/auth/google/callback for HTTPS login."
+              exit 1
+            fi
+
+            if [ -n "$GOOGLE_OAUTH_SUCCESS_REDIRECT" ] && [ "$GOOGLE_OAUTH_SUCCESS_REDIRECT" != "https://$APP_DOMAIN/" ]; then
+              echo "GOOGLE_OAUTH_SUCCESS_REDIRECT must be https://$APP_DOMAIN/ for HTTPS login."
+              exit 1
+            fi
+
+            if [ -n "$SESSION_COOKIE_HTTPS_ONLY" ] && [ "$SESSION_COOKIE_HTTPS_ONLY" != "true" ]; then
+              echo "SESSION_COOKIE_HTTPS_ONLY must be true for HTTPS-only deployment."
+              exit 1
+            fi
+
             IMAGE_NAME="${DOCKER_IMAGE:-$DOCKER_USERNAME/calendar-prioritizer}"
 
             if [ -z "$IMAGE_NAME" ]; then
@@ -205,8 +234,15 @@ jobs:
 
             echo "$DOCKER_PASSWORD" | sudo docker login --username "$DOCKER_USERNAME" --password-stdin
             sudo docker volume create calendar-prioritizer-data
+            sudo docker volume create calendar-prioritizer-caddy-data
+            sudo docker volume create calendar-prioritizer-caddy-config
+            sudo docker network create calendar-prioritizer-net || true
+            sudo systemctl stop nginx || true
+            sudo systemctl disable nginx || true
             sudo docker rm -f calendar-prioritizer || true
+            sudo docker rm -f calendar-prioritizer-proxy || true
             sudo docker pull "$IMAGE_NAME:latest"
+            sudo docker pull caddy:2-alpine
 
             ENV_FILE="$(mktemp)"
             chmod 600 "$ENV_FILE"
@@ -227,14 +263,45 @@ jobs:
               printf 'DATABASE_URL=%s\n' "$DATABASE_URL" >> "$ENV_FILE"
             fi
 
-            if [ -n "$SESSION_COOKIE_HTTPS_ONLY" ]; then
-              printf 'SESSION_COOKIE_HTTPS_ONLY=%s\n' "$SESSION_COOKIE_HTTPS_ONLY" >> "$ENV_FILE"
+            printf 'SESSION_COOKIE_HTTPS_ONLY=true\n' >> "$ENV_FILE"
+
+            sudo mkdir -p /opt/calendar-prioritizer
+
+            if [ -n "$ACME_EMAIL" ]; then
+              sudo tee /opt/calendar-prioritizer/Caddyfile >/dev/null <<EOF
+            {
+              email $ACME_EMAIL
+            }
+
+            $APP_DOMAIN {
+              header Strict-Transport-Security "max-age=31536000"
+              reverse_proxy calendar-prioritizer:80
+            }
+            EOF
+            else
+              sudo tee /opt/calendar-prioritizer/Caddyfile >/dev/null <<EOF
+            $APP_DOMAIN {
+              header Strict-Transport-Security "max-age=31536000"
+              reverse_proxy calendar-prioritizer:80
+            }
+            EOF
             fi
 
             sudo docker run -d --name calendar-prioritizer \
               --restart unless-stopped \
-              -p 80:80 \
+              --network calendar-prioritizer-net \
               -v calendar-prioritizer-data:/data \
               --env-file "$ENV_FILE" \
               "$IMAGE_NAME:latest"
+
+            sudo docker run -d --name calendar-prioritizer-proxy \
+              --restart unless-stopped \
+              --network calendar-prioritizer-net \
+              -p 80:80 \
+              -p 443:443 \
+              -v /opt/calendar-prioritizer/Caddyfile:/etc/caddy/Caddyfile:ro \
+              -v calendar-prioritizer-caddy-data:/data \
+              -v calendar-prioritizer-caddy-config:/config \
+              caddy:2-alpine
+
             rm -f "$ENV_FILE"

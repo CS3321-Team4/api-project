@@ -80,6 +80,7 @@ GOOGLE_REDIRECT_URI=http://localhost/api/auth/google/callback
 DATABASE_URL=sqlite:///./app.db
 GOOGLE_OAUTH_SUCCESS_REDIRECT=http://localhost/
 GOOGLE_SCOPES=openid,email,profile,https://www.googleapis.com/auth/calendar
+SESSION_COOKIE_HTTPS_ONLY=false
 ```
 
 Minimum required for the integration to run:
@@ -94,6 +95,7 @@ Optional but useful:
 - `DATABASE_URL`
 - `GOOGLE_OAUTH_SUCCESS_REDIRECT`
 - `GOOGLE_SCOPES`
+- `SESSION_COOKIE_HTTPS_ONLY`
 
 ## Doppler Setup
 
@@ -130,6 +132,35 @@ http://localhost/api/auth/google/callback
 ```
 
 If you deploy this API, the deployed callback URL must also be added to the same OAuth client.
+
+## HTTPS Deployment
+
+The GitHub Actions deploy job runs the FastAPI container behind a Caddy reverse proxy. Caddy listens on ports `80` and `443`, redirects HTTP traffic to HTTPS, and forwards HTTPS requests to the app container on the private Docker network.
+
+For the deployed site, add or update these Doppler secrets:
+
+```bash
+doppler secrets set APP_DOMAIN="your-domain.example.com"
+doppler secrets set GOOGLE_REDIRECT_URI="https://your-domain.example.com/api/auth/google/callback"
+doppler secrets set GOOGLE_OAUTH_SUCCESS_REDIRECT="https://your-domain.example.com/"
+doppler secrets set SESSION_COOKIE_HTTPS_ONLY="true"
+```
+
+`APP_DOMAIN` must be only the hostname, without `https://` and without a trailing slash. A stable custom domain is recommended. If you use the EC2 public DNS name, use just the hostname, for example:
+
+```bash
+doppler secrets set APP_DOMAIN="ec2-54-183-115-250.us-west-1.compute.amazonaws.com"
+doppler secrets set GOOGLE_REDIRECT_URI="https://ec2-54-183-115-250.us-west-1.compute.amazonaws.com/api/auth/google/callback"
+doppler secrets set GOOGLE_OAUTH_SUCCESS_REDIRECT="https://ec2-54-183-115-250.us-west-1.compute.amazonaws.com/"
+```
+
+Then add the exact same redirect URI in Google Cloud Console under the OAuth client's authorized redirect URIs:
+
+```text
+https://your-domain.example.com/api/auth/google/callback
+```
+
+The AWS security group must allow inbound traffic on ports `80` and `443`. Port `80` is still needed so Caddy can complete certificate issuance and redirect users to HTTPS.
 
 ## Local Development
 
@@ -223,6 +254,7 @@ Doppler should provide these deployment secrets:
 DOCKER_USERNAME
 DOCKER_PASSWORD
 DOCKER_IMAGE
+APP_DOMAIN
 AWS_IP
 AWS_EC2_USERNAME
 SSH_AWS_PEM
@@ -234,9 +266,11 @@ GOOGLE_OAUTH_SUCCESS_REDIRECT
 GOOGLE_SCOPES
 DATABASE_URL
 SESSION_COOKIE_HTTPS_ONLY
+ACME_EMAIL
 ```
 
 `DOCKER_IMAGE` is optional. If it is not set, the workflow uses `DOCKER_USERNAME/calendar-prioritizer`.
+`ACME_EMAIL` is optional. If set, Caddy uses it for certificate issuer account notices.
 
 For branch protection, require the `Coverage` status check before merging into `main`.
 
