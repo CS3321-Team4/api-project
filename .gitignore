@@ -1,7 +1,22 @@
+# Environments and secrets
 .venv/
+.env
+.env.*
+!.env.example
+
+# Python
 __pycache__/
-.pytest_cache/
 *.py[cod]
+.pytest_cache/
+
+# Coverage and build output
 .coverage
 coverage/
+htmlcov/
 dist/
+*.egg-info/
+
+# Local database and logs
+*.db
+*.sqlite3
+*.log
